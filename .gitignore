@@ -1,3 +1,9 @@
 dist/
+build/
 .env/
+.venv/
+*.egg-info/
 pyloggor.egg-info
+__pycache__/
+*.py[cod]
+.idea/
