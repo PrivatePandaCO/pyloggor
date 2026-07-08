@@ -12,20 +12,22 @@ class FileHandler:
         self.log_freq = log_freq
         self.fn = fn
         self.cache = []
+        self.lock = threading.Lock()
         open(fn, "w") if not os.path.exists(fn) else ...
         threading.Thread(target=self._log, daemon=True).start()
 
     def write(self, msg):
-        self.cache.append(msg)
+        with self.lock:
+            self.cache.append(msg)
 
     def _log(self):
         while True:
-            if self.cache:
-                f = open(self.fn, "a")
-                f.write("\n".join(self.cache) + "\n")
-                f.close()
+            time.sleep(1 / self.log_freq)
+            with self.lock:
+                if self.cache:
+                    with open(self.fn, "a") as f:
+                        f.write("\n".join(self.cache) + "\n")
                 self.cache = []
-            time.sleep(self.log_freq)
 
 
 class pyloggor:
@@ -57,20 +59,20 @@ class pyloggor:
         topic_align: Literal["left", "center", "centre", "right"] = "left",
         file_align: Literal["left", "center", "centre", "right"] = "left",
         fn=False,
-        console_output=True,
+        console_output: bool = True,
         level_colours: dict = default_level_colours,
-        default_colour="\033[1;37m",
-        delim="|",
-        datefmt=r"%d-%b-%y, %H:%M:%S:%f",
-        level_symbols=default_level_symbols,
-        auto_filename=True,
-        project_root="",
-        show_file=True,
-        show_symbol=True,
-        show_time=True,
-        show_topic=True,
-        title_level=False,
-        file_log_freq=3,
+        default_colour: str = "\033[1;37m",
+        delim: str = "|",
+        datefmt: str = r"%d-%b-%y, %H:%M:%S:%f",
+        level_symbols: dict[str, str] = default_level_symbols,
+        auto_filename: bool = True,
+        project_root: str = "",
+        show_file: bool = True,
+        show_symbol: bool = True,
+        show_time: bool = True,
+        show_topic: bool = True,
+        title_level: bool = False,
+        file_log_freq: str = 3,
     ):
         self.file = FileHandler(fn, file_log_freq) if fn else False
         self.file_output_level = file_output_level if self.file else "NOLOG"
@@ -135,22 +137,15 @@ class pyloggor:
         file="NoFile",
         msg="NoMessage",  # I don't know why people do this
         extras: Optional[dict] = None,
-        console_output: bool = None,
-        file_output: bool = None,
+        console_output_override: bool = None,
+        file_output_override: bool = None,
     ):
         level = level.title() if self.title_level else level.upper()
 
         time_str = datetime.utcfromtimestamp(time.time()).strftime(self.datefmt)
 
-        if extras:
-            extras_str = f"{self.delim} {self.extras_builder(extras)}"
-        else:
-            extras_str = ""
-
-        if level in self.level_symbols.keys():
-            level_symbol = self.level_symbols[level]
-        else:
-            level_symbol = "*"
+        extras_str = f" {self.delim} {self.extras_builder(extras)}" if extras else ""
+        level_symbol = self.level_symbols[level] if level in self.level_symbols.keys() else ""
 
         _msg = ""
         if self.show_symbol:
@@ -158,6 +153,7 @@ class pyloggor:
 
         if self.show_time:
             _msg += f"{time_str} {self.delim} "
+
         _msg += f"{self.beautify(level, self.level_adjustment_space, self.center_level)} {self.delim} "
         if self.show_file:
             if self.auto_filename:
@@ -177,51 +173,29 @@ class pyloggor:
                 file = f"{os.path.join(os.path.basename(current_dir), os.path.relpath(filename, start=current_dir))}:{frame.f_lineno}"
 
             _msg += f"{self.beautify(file, self.file_adjustment_space, self.center_file)} {self.delim} "
+
         if self.show_topic:
             _msg += f"{self.beautify(topic, self.topic_adjustment_space, self.center_topic)} {self.delim} "
-        _msg += f"{msg} {extras_str}"
+
+        _msg += f"{msg}{extras_str}"
 
         if level.upper() in self.level_colours.keys():
             level_colour = self.level_colours[level.upper()]
         else:
             level_colour = self.default_colour
 
-        console_out = False
-        file_out = None
-
-        if console_output is True:
-            console_out = True
-        elif console_output is False:
-            console_out = False
-        elif console_output is None:
-            if self.console_output is False:
-                console_out = False
-            else:
-                if (
-                    level not in self.default_levels.keys()
-                    or self.default_levels[level] >= self.default_levels[self.console_output_level]
-                ):
-                    console_out = True
-
-        if console_out:
+        if self._result_handler(self.console_output, console_output_override, self.console_output_level, level):
             print(f"{level_colour}{_msg}\033[0m")
 
-        if file_output is True:
-            file_out = True
-        elif file_output is False:
-            file_out = False
-        elif file_output is None:
-            if (
-                level not in self.default_levels.keys()
-                or self.default_levels[level] >= self.default_levels[self.file_output_level]
-            ):
-                file_out = True
-
-        if self.file and file_out:
+        if self._result_handler(self.file, file_output_override, self.file_output_level, level):
             self.file.write(_msg)
 
-    def set_level(self, file_output_level=None, console_output_level=None) -> None:
-        if file_output_level:
-            self.file_output_level = file_output_level
-        if console_output_level:
-            self.console_output_level = console_output_level
+    def _result_handler(self, default, override, default_level, level):
+        if override:
+            return True
+        if override is False or default is False:
+            return False
+        if level not in self.default_levels.keys() or self.default_levels.get(level, float("inf")) >= self.default_levels.get(
+            default_level, 0
+        ):
+            return True
