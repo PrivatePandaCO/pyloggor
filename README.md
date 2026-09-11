@@ -1,6 +1,6 @@
 # pyloggor
 
-The easiest and perhaps the most versatile logger for Python.
+Structured, column-aligned logging for Python, with coloured console output and file writes batched on a background thread.
 
 ## Table of Contents
 - [Installation](#installation)
@@ -11,13 +11,15 @@ The easiest and perhaps the most versatile logger for Python.
   - [Colouring](#colouring)
   - [Initialization options](#initialization-options)
   - [Logging options](#logging-options)
-- [Appendix](#appendix)
+- [Contributing and license](#contributing-and-license)
 
 ## Installation
 
 ```
 pip install pyloggor
 ```
+
+On PyPI: [pypi.org/project/pyloggor](https://pypi.org/project/pyloggor/).
 
 Requires Python 3.9+.
 
@@ -111,7 +113,7 @@ Other methods:
 - `logger.close()` — flush buffered file logs and stop the background writer. Also runs
   automatically on interpreter exit; `CRITICAL` logs are flushed immediately.
 
-## Appendix
+## Contributing and license
 
-**Find this incomplete?** Open an [issue](https://github.com/PrivatePandaCO/pyloggor/issues).
-Check out my [profile](https://github.com/ThePrivatePanda) — and leave a star if you found this useful!
+Bug reports and pull requests are welcome on the [issue tracker](https://github.com/PrivatePandaCO/pyloggor/issues).
+Changes are listed in [Changelog.md](Changelog.md). MIT licensed; see [LICENSE](LICENSE).
